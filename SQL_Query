@@ -1,1 +1,250 @@
+create database ipl_analysis ;
 
+CREATE TABLE matches (
+    id INT PRIMARY KEY,
+    season VARCHAR(20),
+    city VARCHAR(100),
+    date DATE,
+    team1 VARCHAR(100),
+    team2 VARCHAR(100),
+    toss_winner VARCHAR(100),
+    toss_decision VARCHAR(100),
+    result VARCHAR(50),
+    winner VARCHAR(100),
+    player_of_match VARCHAR(100),
+    venue VARCHAR(255)
+);
+
+
+CREATE TABLE deliveries (
+    match_id INT,
+    inning INT,
+    batting_team VARCHAR(100),
+    bowling_team VARCHAR(100),
+    over_no INT,
+    ball INT,
+    bater VARCHAR(100),
+    bowler VARCHAR(100),
+    batsman_runs INT,
+    extra_runs INT,
+    total_runs INT,
+    player_dismissed VARCHAR(100)
+);
+
+
+-- to show data which is import 
+select * from matches;
+select * from deliveries;
+
+
+--Total Matches played 
+SELECT COUNT(*) AS total_matches
+FROM matches;
+
+
+--Seasons Available 
+SELECT DISTINCT season       --DISTINCT used for unique value 
+FROM matches;
+
+
+--Total Teams 
+SELECT COUNT(DISTINCT team1)
+FROM matches;
+
+
+--most time winning team
+SELECT winner,COUNT(winner) AS wins
+FROM matches
+GROUP BY winner
+ORDER BY wins DESC;
+
+
+--top 10 run score of batter
+SELECT bater, SUM(batsman_runs) AS total_runs
+FROM deliveries
+GROUP BY bater
+ORDER BY total_runs DESC
+LIMIT 10;
+
+
+--top Wicket Takers 
+SELECT bowler,COUNT(player_dismissed) AS wickets
+FROM deliveries
+WHERE player_dismissed IS NOT NULL
+GROUP BY bowler
+ORDER BY wickets DESC
+LIMIT 10;
+
+
+--those team win toss and aslo win match 
+SELECT COUNT(toss_winner) AS toss_and_match_win
+FROM matches
+WHERE toss_winner = result;
+
+
+--highest induvidual score 
+SELECT match_id,
+bater,
+SUM(batsman_runs) AS score
+FROM deliveries
+GROUP BY match_id,bater
+ORDER BY score DESC
+LIMIT 10;
+
+
+--most sixes 
+SELECT bater,
+COUNT(*) AS sixes
+FROM deliveries
+WHERE batsman_runs = 6
+GROUP BY bater
+ORDER BY sixes DESC;
+
+
+--most fours
+SELECT bater,COUNT(*) AS sixes
+FROM deliveries
+WHERE batsman_runs = 4
+GROUP BY bater
+ORDER BY sixes DESC;
+
+
+--Best Strike Rate by minimum 1000 balls
+SELECT bater,
+ROUND(
+SUM(batsman_runs)*100.0/
+COUNT(*),2
+) AS strike_rate
+FROM deliveries
+GROUP BY bater
+HAVING COUNT(*) >= 1000
+ORDER BY strike_rate DESC;
+
+
+--best Economy rate
+SELECT bowler,
+ROUND(
+SUM(total_runs)*6.0/
+COUNT(*),2
+) AS economy
+FROM deliveries
+GROUP BY bowler
+HAVING COUNT(*) > 500
+ORDER BY economy;
+
+
+
+--orange cap holder in every season
+WITH player_runs AS(
+SELECT m.season,d.bater,
+SUM(d.batsman_runs) runs
+FROM deliveries d
+JOIN matches m
+ON d.match_id=m.id
+GROUP BY m.season,d.bater
+)
+SELECT *FROM(SELECT *,
+RANK() OVER
+(PARTITION BY season ORDER BY runs DESC) rnk
+FROM player_runs
+)x
+WHERE rnk=1;
+
+
+--Purple cap holder in every season
+WITH wickets AS(
+SELECT m.season,d.bolwer,
+COUNT(player_dismissed) wickets
+FROM deliveries d
+JOIN matches m
+ON d.match_id=m.id
+WHERE dismissal_kind!= 'run out'
+GROUP BY m.season,d.bolwer
+)
+SELECT *FROM(SELECT *,
+RANK() OVER
+(PARTITION BY season ORDER BY wickets DESC) rnk
+FROM wickets
+)x
+WHERE rnk=1;
+
+
+--Most Player of the Match Awards
+SELECT player_of_match,
+COUNT(*) awards
+FROM matches
+GROUP BY player_of_match
+ORDER BY awards DESC;
+
+
+--Team with Most IPL Trophies
+SELECT season, result  AS champion
+FROM matches
+WHERE id IN (
+    SELECT MAX(id)
+    FROM matches
+    GROUP BY season
+);
+
+
+--Trophy Count
+SELECT COUNT(result ) AS trophies
+FROM (
+    SELECT season, result
+    FROM matches
+    WHERE id IN (
+        SELECT MAX(id)
+        FROM matches
+        GROUP BY season
+    )
+) t
+GROUP BY result
+ORDER BY trophies DESC;
+
+
+--Toss Impact on Match Result
+SELECT ROUND (COUNT(
+CASE
+WHEN toss_winner = result
+THEN 1
+END
+)*100.0/COUNT(*),
+2
+) AS toss_win_match_win_percentage
+FROM matches;
+
+
+--Venue-wise Win Analysis
+SELECT venue, winner,COUNT(*) AS wins
+FROM matches
+GROUP BY venue,winner
+ORDER BY venue,wins DESC;
+
+
+--Most Successful Team at Each Venue
+WITH venue_wins AS (
+SELECT venue,
+       result,
+       COUNT(*) wins,
+       RANK() OVER(
+          PARTITION BY venue
+          ORDER BY COUNT(*) DESC
+       ) rnk
+FROM matches
+GROUP BY venue,result
+)
+SELECT venue,result,wins
+FROM venue_wins
+WHERE rnk=1;
+
+
+--Season-wise Champion Analysis
+SELECT season,
+       result AS champion
+FROM matches
+WHERE id IN (
+     SELECT MAX(id)
+     FROM matches
+     GROUP BY season
+)
+ORDER BY season;
