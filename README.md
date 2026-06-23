@@ -24,11 +24,9 @@ This project analyzes IPL match and ball-by-ball data using SQL and Power BI.
 
 ## Dashboard
 
-(Add Dashboard Screenshot)
+<img width="1536" height="1024" alt="IPL_Dashboard" src="https://github.com/user-attachments/assets/eb95a4dc-e880-4d49-93d5-e82f6461d7e7" />
 
-## SQL Queries
 
-(Add SQL Screenshots)
 
 ## Author
 
